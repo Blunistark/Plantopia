@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  plantopia-backend:
+    build: .
+    container_name: plantopia-api
+    ports:
+      - "5000:5000"
+    environment:
+      - OPENTOPO_API_KEY=${OPENTOPO_API_KEY}
+      - FLASK_ENV=production
+    volumes:
+      - ./temp:/app/temp
+      - ./cache:/app/cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

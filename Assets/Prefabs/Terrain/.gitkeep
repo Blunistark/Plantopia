@@ -1,0 +1,2 @@
+# This file ensures the Terrain prefabs directory is tracked by git
+# Prefab files (.prefab) will be created in the Unity Editor

@@ -1,0 +1,22 @@
+# Alternative Python requirements without GDAL
+# Install GDAL separately using conda or pre-built wheels
+
+# Core dependencies
+numpy>=1.19.0
+Pillow>=8.0.0
+scipy>=1.5.0
+
+# GDAL Installation Instructions:
+# 
+# Windows:
+#   Option A: pip install pipwin && pipwin install gdal
+#   Option B: conda install -c conda-forge gdal
+#   Option C: Download wheel from https://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal
+#
+# Linux:
+#   sudo apt-get install gdal-bin python3-gdal
+#   pip install gdal
+#
+# macOS:
+#   brew install gdal
+#   pip install gdal

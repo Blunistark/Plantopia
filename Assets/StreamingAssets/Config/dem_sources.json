@@ -1,0 +1,32 @@
+{
+  "sources": [
+    {
+      "id": "srtmgl1",
+      "name": "SRTM GL1 (30m)",
+      "provider": "OpenTopography",
+      "resolution": "30m",
+      "coverage": "Global (60°N-60°S)",
+      "description": "NASA Shuttle Radar Topography Mission - 1 arc-second resolution",
+      "enabled": true
+    },
+    {
+      "id": "srtmgl3",
+      "name": "SRTM GL3 (90m)",
+      "provider": "OpenTopography",
+      "resolution": "90m",
+      "coverage": "Global (60°N-60°S)",
+      "description": "NASA Shuttle Radar Topography Mission - 3 arc-second resolution",
+      "enabled": true
+    },
+    {
+      "id": "aw3d30",
+      "name": "ALOS World 3D (30m)",
+      "provider": "OpenTopography",
+      "resolution": "30m",
+      "coverage": "Global (82°N-82°S)",
+      "description": "ALOS World 3D topographic dataset",
+      "enabled": true
+    }
+  ],
+  "defaultSource": "aw3d30"
+}

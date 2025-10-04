@@ -1,0 +1,24 @@
+{
+  "backend": {
+    "backendUrl": "http://localhost:5000",
+    "useLocalAPI": true,
+    "fallbackToDirect": true
+  },
+  "openTopography": {
+    "apiKey": "0cbdf6155fbd19e73bae8dd14047be8d",
+    "baseUrl": "https://portal.opentopography.org/API/globaldem",
+    "demTypes": ["SRTMGL1", "SRTMGL3", "AW3D30"],
+    "defaultDemType": "SRTMGL1"
+  },
+  "nominatim": {
+    "baseUrl": "https://nominatim.openstreetmap.org",
+    "userAgent": "Plantopia/1.0",
+    "timeout": 30
+  },
+  "cache": {
+    "enableDemCache": true,
+    "enableHeightmapCache": true,
+    "maxCacheSize": 1073741824,
+    "cacheDuration": 2592000
+  }
+}

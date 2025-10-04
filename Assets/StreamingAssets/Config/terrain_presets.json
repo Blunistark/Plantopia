@@ -1,0 +1,49 @@
+{
+  "presets": [
+    {
+      "name": "High Quality",
+      "heightmapResolution": 1025,
+      "terrainSize": {
+        "x": 2000,
+        "y": 600,
+        "z": 2000
+      },
+      "heightScale": 1.0,
+      "description": "High detail terrain for close-up views"
+    },
+    {
+      "name": "Medium Quality",
+      "heightmapResolution": 513,
+      "terrainSize": {
+        "x": 2000,
+        "y": 600,
+        "z": 2000
+      },
+      "heightScale": 1.0,
+      "description": "Balanced quality and performance"
+    },
+    {
+      "name": "Low Quality",
+      "heightmapResolution": 257,
+      "terrainSize": {
+        "x": 2000,
+        "y": 600,
+        "z": 2000
+      },
+      "heightScale": 1.0,
+      "description": "Lower detail for better performance"
+    },
+    {
+      "name": "Large Area",
+      "heightmapResolution": 513,
+      "terrainSize": {
+        "x": 5000,
+        "y": 1000,
+        "z": 5000
+      },
+      "heightScale": 1.0,
+      "description": "Larger terrain coverage"
+    }
+  ],
+  "default": "High Quality"
+}

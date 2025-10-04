@@ -1,0 +1,3 @@
+# Fonts directory
+# Add RobotoMono.ttf or other custom fonts here
+# Fonts will be available through Resources.Load() at runtime
