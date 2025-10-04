@@ -109,6 +109,12 @@ Response:
 
 ## Installation
 
+### Prerequisites
+
+- Docker and Docker Compose
+- Access to central n8n instance at `n8n.hacksters.tech`
+- Shared network: `n8n-central_shared-apps-network`
+
 ### Local Development
 
 1. **Install Python dependencies**:
@@ -131,7 +137,28 @@ Server runs on `http://localhost:5000`
 
 ### Docker Deployment
 
-1. **Build and run with Docker Compose**:
+**Quick Setup:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+**Manual Setup:**
+
+1. **Create .env file**:
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+2. **Verify shared network exists**:
+```bash
+docker network ls | grep n8n-central_shared-apps-network
+# If not present:
+docker network create n8n-central_shared-apps-network
+```
+
+3. **Build and run with Docker Compose**:
 ```bash
 # Set your API key in .env file first
 docker-compose up -d
@@ -165,9 +192,36 @@ docker run -d \
 
 ### Environment Variables
 
+**Required:**
 - `OPENTOPO_API_KEY`: Your OpenTopography API key (required)
+- `POSTGRES_DB`: Database name
+- `POSTGRES_USER`: Database user  
+- `POSTGRES_PASSWORD`: Database password
+
+**n8n Integration:**
+- `N8N_BASE_URL`: n8n base URL (default: `http://n8n-main:5678`)
+- `N8N_WEBHOOK_AI_CHAT`: AI chat webhook path
+- `N8N_WEBHOOK_DATA_FETCH`: Data fetch webhook path
+- `N8N_TIMEOUT`: Request timeout in ms (default: 30000)
+
+**Flask:**
 - `FLASK_ENV`: Set to `production` for deployment
 - `FLASK_APP`: Set to `app.py` (default)
+
+### n8n Integration
+
+This backend integrates with a central n8n instance for:
+- **AI Chatbot**: Plant care advice, terrain analysis
+- **Data Orchestration**: NASA APIs, weather data
+- **Automation**: Scheduled tasks, notifications
+
+**See [N8N_INTEGRATION.md](./N8N_INTEGRATION.md) for complete setup guide.**
+
+**Quick test:**
+```bash
+# Test n8n connectivity
+docker exec plantopia-api curl http://n8n-main:5678/healthz
+```
 
 ### Supported DEM Types
 

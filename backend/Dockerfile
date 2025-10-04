@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     gdal-bin \
     libgdal-dev \
     build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables for GDAL
@@ -23,6 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app.py .
+COPY n8n_client.py .
 
 # Create necessary directories
 RUN mkdir -p temp cache
