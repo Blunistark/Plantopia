@@ -8,15 +8,19 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
 import requests
-import rasterio
+from osgeo import gdal
 import numpy as np
 from PIL import Image
 from scipy.interpolate import griddata
+from scipy.ndimage import gaussian_filter
 import tempfile
 import logging
 from werkzeug.utils import secure_filename
 import uuid
 from datetime import datetime
+
+# Enable GDAL exceptions
+gdal.UseExceptions()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Unity WebGL
@@ -240,27 +244,46 @@ def process_dem():
 
 def process_dem_to_heightmap(dem_path, resolution):
     """
-    Convert DEM GeoTIFF to heightmap PNG using rasterio
+    Convert DEM GeoTIFF to heightmap PNG using GDAL
     """
     try:
-        # Read DEM with rasterio
-        with rasterio.open(dem_path) as src:
-            elevation_data = src.read(1)
+        # Open DEM with GDAL
+        dataset = gdal.Open(dem_path)
+        if dataset is None:
+            raise Exception(f"Failed to open DEM file: {dem_path}")
+        
+        # Read elevation band - use ReadAsArray directly without gdal_array module
+        band = dataset.GetRasterBand(1)
+        elevation_data = band.ReadAsArray()
+        
+        if elevation_data is None:
+            raise Exception("Failed to read elevation data from DEM")
+        
+        # Convert to float32 for processing
+        elevation_data = elevation_data.astype(np.float32)
+        
+        # Get NoData value
+        nodata = band.GetNoDataValue()
+        
+        # Close dataset to free resources
+        band = None
+        dataset = None
+        
+        # Handle NoData values
+        if nodata is not None:
+            elevation_data = np.where(
+                elevation_data == nodata,
+                np.nan,
+                elevation_data
+            )
+        
+        # Fill NaN values with interpolation
+        if np.any(np.isnan(elevation_data)):
+            mask = ~np.isnan(elevation_data)
+            coords = np.array(np.nonzero(mask)).T
+            values = elevation_data[mask]
             
-            # Handle NoData values
-            if src.nodata is not None:
-                elevation_data = np.where(
-                    elevation_data == src.nodata,
-                    np.nan,
-                    elevation_data
-                )
-            
-            # Fill NaN values with interpolation
-            if np.any(np.isnan(elevation_data)):
-                mask = ~np.isnan(elevation_data)
-                coords = np.array(np.nonzero(mask)).T
-                values = elevation_data[mask]
-                
+            if len(values) > 0:
                 # Create grid for all points
                 grid_y, grid_x = np.mgrid[0:elevation_data.shape[0], 0:elevation_data.shape[1]]
                 
@@ -269,33 +292,66 @@ def process_dem_to_heightmap(dem_path, resolution):
                     coords, values,
                     (grid_y, grid_x),
                     method='linear',
-                    fill_value=np.nanmean(values) if len(values) > 0 else 0
+                    fill_value=float(np.nanmean(values))
                 )
-            
-            # Normalize to 0-1 range
-            min_elevation = np.nanmin(elevation_data)
-            max_elevation = np.nanmax(elevation_data)
-            
-            if max_elevation > min_elevation:
-                normalized = (elevation_data - min_elevation) / (max_elevation - min_elevation)
             else:
-                normalized = np.zeros_like(elevation_data)
-            
-            # Resize to target resolution using PIL
-            image = Image.fromarray((normalized * 255).astype(np.uint8), mode='L')
-            image = image.resize((resolution, resolution), Image.LANCZOS)
-            
-            # Convert to 16-bit for better precision
-            image_16bit = Image.fromarray((np.array(image) / 255.0 * 65535).astype(np.uint16))
-            
-            # Save heightmap
-            output_path = dem_path.replace('.tif', '_heightmap.png')
-            image_16bit.save(output_path, 'PNG')
-            
-            logger.info(f"Heightmap created: {output_path} (Range: {min_elevation:.2f}m to {max_elevation:.2f}m)")
-            
-            return output_path
-            
+                elevation_data = np.zeros_like(elevation_data)
+        
+        # Apply Gaussian smoothing to reduce noise
+        elevation_data = gaussian_filter(elevation_data, sigma=1.5)
+        
+        # Normalize to 0-1 range
+        min_elevation = float(np.nanmin(elevation_data))
+        max_elevation = float(np.nanmax(elevation_data))
+        
+        logger.info(f"Elevation range: {min_elevation:.2f}m to {max_elevation:.2f}m")
+        
+        if max_elevation > min_elevation:
+            normalized = (elevation_data - min_elevation) / (max_elevation - min_elevation)
+        else:
+            normalized = np.zeros_like(elevation_data)
+        
+        # Resize to target resolution using PIL with high-quality resampling
+        image = Image.fromarray((normalized * 255).astype(np.uint8), mode='L')
+        image = image.resize((resolution, resolution), Image.Resampling.LANCZOS)
+        
+        # Apply slight smoothing after resize to reduce artifacts
+        image_array = np.array(image).astype(np.float32)
+        image_array = gaussian_filter(image_array, sigma=0.5)
+        
+        # Convert to 16-bit for better precision
+        image_16bit = Image.fromarray((image_array / 255.0 * 65535).astype(np.uint16))
+        
+        # Save heightmap
+        output_path = dem_path.replace('.tif', '_heightmap.png')
+        image_16bit.save(output_path, 'PNG')
+        
+        logger.info(f"Heightmap created: {output_path} (Range: {min_elevation:.2f}m to {max_elevation:.2f}m)")
+        
+        return output_path
+        
+    except Exception as e:
+        logger.error(f"Error processing DEM to heightmap: {e}")
+        raise
+        
+        # Apply slight smoothing after resize to reduce artifacts
+        image_array = np.array(image).astype(np.float32)
+        image_array = gaussian_filter(image_array, sigma=0.5)
+        
+        # Convert to 16-bit for better precision
+        image_16bit = Image.fromarray((image_array / 255.0 * 65535).astype(np.uint16))
+        
+        # Save heightmap
+        output_path = dem_path.replace('.tif', '_heightmap.png')
+        image_16bit.save(output_path, 'PNG')
+        
+        # Close dataset
+        dataset = None
+        
+        logger.info(f"Heightmap created: {output_path} (Range: {min_elevation:.2f}m to {max_elevation:.2f}m)")
+        
+        return output_path
+        
     except Exception as e:
         logger.error(f"Error processing DEM to heightmap: {e}")
         raise
@@ -320,28 +376,41 @@ def process_dem_info():
         if not os.path.exists(dem_path):
             return jsonify({'error': f'DEM file not found: {file_id}'}), 404
         
-        # Read DEM metadata
-        with rasterio.open(dem_path) as src:
-            elevation_data = src.read(1)
-            
-            # Handle NoData
-            if src.nodata is not None:
-                elevation_data = np.where(
-                    elevation_data == src.nodata,
-                    np.nan,
-                    elevation_data
-                )
-            
-            min_elev = float(np.nanmin(elevation_data))
-            max_elev = float(np.nanmax(elevation_data))
-            
-            return jsonify({
-                'min_elevation': min_elev,
-                'max_elevation': max_elev,
-                'size': list(elevation_data.shape),
-                'bounds': src.bounds._asdict(),
-                'crs': str(src.crs)
-            })
+        # Read DEM metadata with GDAL
+        dataset = gdal.Open(dem_path, gdalconst.GA_ReadOnly)
+        if dataset is None:
+            return jsonify({'error': f'Failed to open DEM file: {file_id}'}), 500
+        
+        band = dataset.GetRasterBand(1)
+        elevation_data = band.ReadAsArray().astype(np.float32)
+        
+        # Handle NoData
+        nodata = band.GetNoDataValue()
+        if nodata is not None:
+            elevation_data = np.where(
+                elevation_data == nodata,
+                np.nan,
+                elevation_data
+            )
+        
+        min_elev = float(np.nanmin(elevation_data))
+        max_elev = float(np.nanmax(elevation_data))
+        
+        # Get geotransform and projection
+        geotransform = dataset.GetGeoTransform()
+        projection = dataset.GetProjection()
+        
+        result = {
+            'min_elevation': min_elev,
+            'max_elevation': max_elev,
+            'size': [dataset.RasterYSize, dataset.RasterXSize],
+            'projection': projection
+        }
+        
+        # Close dataset
+        dataset = None
+        
+        return jsonify(result)
             
     except Exception as e:
         logger.error(f"Error getting DEM info: {e}")

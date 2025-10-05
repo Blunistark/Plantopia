@@ -1,37 +1,50 @@
 using UnityEngine;
 using UnityEngine.Networking;
-using System.Diagnostics;
+using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.Diagnostics;
+using Plantopia.Core;
+using Debug = UnityEngine.Debug;
 
 namespace Plantopia.DEM
 {
     /// <summary>
-    /// Processes DEM files using Backend API or local Python scripts
+    /// Processes DEM files using Python scripts or Backend API
     /// </summary>
     public class DEMProcessor : MonoBehaviour
     {
-        [Header("API Settings")]
-        public string backendUrl = "http://localhost:5000";
-        public bool useLocalAPI = true; // If false, uses local Python processing
-        
-        [Header("Settings")]
+        [Header("Processing Settings")]
+        public int defaultResolution = 513;
         public string pythonExecutable = "python";
-        public int heightmapResolution = 513;
+        
+        [Header("API Settings")]
+        public bool useAPI = true;
+        public string backendUrl = "http://localhost:5000";
         
         private string pythonScriptPath;
         private string heightmapOutputPath;
-        private bool pathsInitialized = false;
-        
-        private void Awake()
+        private APIConfig apiConfig;
+
+        void Awake()
         {
+            // Initialize paths
+            pythonScriptPath = Path.Combine(Application.streamingAssetsPath, "Scripts", "dem_processor_alt.py");
+            heightmapOutputPath = Path.Combine(Application.streamingAssetsPath, "Heightmaps", "temp");
+            
+            // Ensure output directory exists
+            if (!Directory.Exists(heightmapOutputPath))
+            {
+                Directory.CreateDirectory(heightmapOutputPath);
+            }
+
+            // Load API config
             LoadAPIConfig();
-            InitializePaths();
+            
+            Debug.Log($"DEMProcessor initialized. Using API: {useAPI}");
+            Debug.Log($"Backend URL: {backendUrl}");
         }
-        
-        /// <summary>
-        /// Load API configuration from JSON file
-        /// </summary>
+
         private void LoadAPIConfig()
         {
             try
@@ -40,223 +53,302 @@ namespace Plantopia.DEM
                 if (File.Exists(configPath))
                 {
                     string json = File.ReadAllText(configPath);
+                    apiConfig = JsonUtility.FromJson<APIConfig>(json);
                     
-                    // Extract backend URL
-                    int urlIndex = json.IndexOf("\"backendUrl\"");
-                    if (urlIndex > 0)
+                    if (apiConfig != null)
                     {
-                        int colonIndex = json.IndexOf(":", urlIndex);
-                        int quoteStart = json.IndexOf("\"", colonIndex + 1);
-                        int quoteEnd = json.IndexOf("\"", quoteStart + 1);
-                        
-                        if (quoteStart > 0 && quoteEnd > quoteStart)
-                        {
-                            string configUrl = json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-                            if (!string.IsNullOrEmpty(configUrl))
-                            {
-                                backendUrl = configUrl;
-                            }
-                        }
-                    }
-                    
-                    // Extract useLocalAPI setting
-                    int useLocalIndex = json.IndexOf("\"useLocalAPI\"");
-                    if (useLocalIndex > 0)
-                    {
-                        int colonIndex = json.IndexOf(":", useLocalIndex);
-                        string value = json.Substring(colonIndex + 1, 10).Trim();
-                        useLocalAPI = value.StartsWith("true");
+                        useAPI = apiConfig.useLocalAPI;
+                        backendUrl = apiConfig.backendUrl;
+                        Debug.Log($"Loaded API config - useAPI: {useAPI}, backend: {backendUrl}");
                     }
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception e)
             {
-                UnityEngine.Debug.LogWarning($"Failed to load API config: {ex.Message}. Using defaults.");
+                Debug.LogWarning($"Failed to load API config: {e.Message}. Using defaults.");
             }
         }
-        
-        private void InitializePaths()
-        {
-            if (pathsInitialized) return;
-            
-            // Try alternative script first (uses rasterio instead of GDAL - easier Windows install)
-            string altScriptPath = Path.Combine(Application.streamingAssetsPath, "Scripts", "dem_processor_alt.py");
-            string mainScriptPath = Path.Combine(Application.streamingAssetsPath, "Scripts", "dem_processor.py");
-            
-            // Use alternative script if main doesn't exist, or prefer alternative for Windows
-            pythonScriptPath = File.Exists(altScriptPath) ? altScriptPath : mainScriptPath;
-            
-            heightmapOutputPath = Path.Combine(Application.streamingAssetsPath, "Heightmaps", "temp");
-            Directory.CreateDirectory(heightmapOutputPath);
-            
-            UnityEngine.Debug.Log($"Python script path: {pythonScriptPath}");
-            UnityEngine.Debug.Log($"Heightmap output path: {heightmapOutputPath}");
-            UnityEngine.Debug.Log($"Script exists: {File.Exists(pythonScriptPath)}");
-            
-            pathsInitialized = true;
-        }
-        
+
         /// <summary>
-        /// Process DEM file to generate heightmap
-        /// Can take either a file path (direct download) or file ID (backend API)
+        /// Process DEM file to heightmap
+        /// fileIdOrPath: When using API, this is the file_id. When using local Python, this is the file path.
         /// </summary>
-        public async Task<string> ProcessDEM(string demFilePathOrId)
+        public async Task<string> ProcessDEM(string fileIdOrPath)
         {
-            if (useLocalAPI && !demFilePathOrId.Contains("\\") && !demFilePathOrId.Contains("/"))
+            if (string.IsNullOrEmpty(fileIdOrPath))
             {
-                // It's a file ID from backend API
-                return await ProcessDEMViaBackend(demFilePathOrId);
+                Debug.LogError("DEM file ID or path is empty");
+                return null;
+            }
+
+            if (useAPI)
+            {
+                // fileIdOrPath is actually a file_id from the backend
+                return await ProcessDEMWithAPI(fileIdOrPath);
             }
             else
             {
-                // It's a file path for local processing
-                return await ProcessDEMLocally(demFilePathOrId);
+                // fileIdOrPath is a local file path
+                if (!File.Exists(fileIdOrPath))
+                {
+                    Debug.LogError($"DEM file not found: {fileIdOrPath}");
+                    return null;
+                }
+                return await ProcessDEMWithPython(fileIdOrPath);
             }
         }
-        
+
         /// <summary>
-        /// Process DEM via backend API using file ID
+        /// Process DEM using Backend API
         /// </summary>
-        private async Task<string> ProcessDEMViaBackend(string fileId)
+        private async Task<string> ProcessDEMWithAPI(string fileId)
         {
-            string url = $"{backendUrl}/api/process-dem";
-            
-            // Create JSON request body
-            string jsonBody = $"{{\"file_id\":\"{fileId}\",\"resolution\":{heightmapResolution}}}";
-            
-            UnityEngine.Debug.Log($"Processing DEM via backend API: {url}");
-            
-            using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+            try
             {
-                byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonBody);
+                Debug.Log($"Processing DEM with Backend API. File ID: {fileId}");
+
+                // Request heightmap processing - backend returns PNG directly
+                string heightmapPath = await RequestHeightmapProcessing(fileId);
+                if (string.IsNullOrEmpty(heightmapPath))
+                {
+                    Debug.LogError("Failed to process DEM to heightmap");
+                    return null;
+                }
+
+                Debug.Log($"✓ Heightmap saved to: {heightmapPath}");
+                return heightmapPath;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"API processing failed: {e.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Request heightmap processing from backend - returns PNG file directly
+        /// </summary>
+        private async Task<string> RequestHeightmapProcessing(string fileId)
+        {
+            var requestData = new ProcessRequest
+            {
+                file_id = fileId,
+                resolution = defaultResolution,
+                output_format = "png"
+            };
+
+            string jsonData = JsonUtility.ToJson(requestData);
+            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
+
+            Debug.Log($"Requesting heightmap processing: {backendUrl}/api/process-dem");
+            Debug.Log($"Request data: {jsonData}");
+
+            using (UnityWebRequest request = new UnityWebRequest($"{backendUrl}/api/process-dem", "POST"))
+            {
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
-                
+
                 var operation = request.SendWebRequest();
                 
-                while (!operation.isDone)
-                {
-                    await Task.Yield();
-                }
-                
+                // Wait for completion
+                var tcs = new TaskCompletionSource<bool>();
+                operation.completed += _ => tcs.SetResult(true);
+                await tcs.Task;
+
                 if (request.result == UnityWebRequest.Result.Success)
                 {
-                    // Save heightmap PNG from response
-                    byte[] heightmapData = request.downloadHandler.data;
+                    // Backend returns PNG file directly, not JSON
+                    byte[] pngData = request.downloadHandler.data;
+                    Debug.Log($"✓ Received PNG data: {pngData.Length} bytes");
                     
-                    // Ensure output directory exists
-                    InitializePaths();
+                    // Ensure output path is initialized
+                    if (string.IsNullOrEmpty(heightmapOutputPath))
+                    {
+                        heightmapOutputPath = Path.Combine(Application.streamingAssetsPath, "Heightmaps", "temp");
+                        if (!Directory.Exists(heightmapOutputPath))
+                        {
+                            Directory.CreateDirectory(heightmapOutputPath);
+                        }
+                    }
                     
-                    string outputFilename = $"heightmap_{fileId}.png";
-                    string outputPath = Path.Combine(heightmapOutputPath, outputFilename);
+                    // Save PNG to file
+                    string outputPath = Path.Combine(heightmapOutputPath, $"heightmap_{fileId}.png");
+                    File.WriteAllBytes(outputPath, pngData);
                     
-                    File.WriteAllBytes(outputPath, heightmapData);
-                    
-                    UnityEngine.Debug.Log($"✓ Heightmap processed via backend: {outputPath} ({heightmapData.Length} bytes)");
-                    
-                    // Cleanup backend files
-                    await CleanupBackendFiles(fileId);
-                    
+                    Debug.Log($"✓ Heightmap saved to: {outputPath}");
                     return outputPath;
                 }
                 else
                 {
-                    UnityEngine.Debug.LogError($"Backend DEM processing failed: {request.error}");
-                    return null;
+                    Debug.LogError($"Processing failed: {request.error}");
+                    Debug.LogError($"Response code: {request.responseCode}");
+                    if (request.downloadHandler != null)
+                    {
+                        Debug.LogError($"Response: {request.downloadHandler.text}");
+                    }
                 }
             }
+
+            return null;
         }
-        
+
         /// <summary>
-        /// Process DEM locally using Python script
+        /// Download heightmap from backend
         /// </summary>
-        private async Task<string> ProcessDEMLocally(string demFilePath)
+        private async Task<string> DownloadHeightmap(string heightmapId)
         {
-            // Ensure paths are initialized (in case Awake hasn't run yet)
-            InitializePaths();
-            
-            if (string.IsNullOrEmpty(pythonScriptPath) || !File.Exists(pythonScriptPath))
+            string url = $"{backendUrl}/api/heightmap/{heightmapId}";
+            string outputPath = Path.Combine(heightmapOutputPath, $"heightmap_{heightmapId}.png");
+
+            Debug.Log($"Downloading heightmap from: {url}");
+
+            using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
             {
-                UnityEngine.Debug.LogError($"Python script not found: {pythonScriptPath}");
+                var operation = request.SendWebRequest();
+                
+                // Wait for completion
+                var tcs = new TaskCompletionSource<bool>();
+                operation.completed += _ => tcs.SetResult(true);
+                await tcs.Task;
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    // Save the texture to file
+                    Texture2D texture = DownloadHandlerTexture.GetContent(request);
+                    byte[] pngData = texture.EncodeToPNG();
+                    File.WriteAllBytes(outputPath, pngData);
+                    
+                    Debug.Log($"✓ Heightmap downloaded and saved: {outputPath}");
+                    Debug.Log($"Heightmap size: {texture.width}x{texture.height}");
+                    return outputPath;
+                }
+                else
+                {
+                    Debug.LogError($"Download failed: {request.error}");
+                    Debug.LogError($"Response: {request.downloadHandler.text}");
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Process DEM using local Python script
+        /// </summary>
+        private async Task<string> ProcessDEMWithPython(string demFilePath)
+        {
+            if (!File.Exists(pythonScriptPath))
+            {
+                Debug.LogError($"Python script not found: {pythonScriptPath}");
                 return null;
             }
+
+            string outputFileName = $"heightmap_{DateTime.Now.Ticks}.png";
+            string outputPath = Path.Combine(heightmapOutputPath, outputFileName);
+
+            string arguments = $"\"{pythonScriptPath}\" \"{demFilePath}\" \"{outputFileName}\" {defaultResolution}";
             
-            string outputFilename = $"heightmap_{System.DateTime.Now.Ticks}.png";
-            string outputPath = Path.Combine(heightmapOutputPath, outputFilename);
-            
-            // Build Python command
-            string arguments = $"\"{pythonScriptPath}\" \"{demFilePath}\" \"{outputPath}\" {heightmapResolution}";
-            
-            ProcessStartInfo startInfo = new ProcessStartInfo
-            {
-                FileName = pythonExecutable,
-                Arguments = arguments,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-            
-            UnityEngine.Debug.Log($"Running Python command: {pythonExecutable} {arguments}");
-            
+            Debug.Log($"Running Python command: {pythonExecutable} {arguments}");
+
             try
             {
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = pythonExecutable,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    WorkingDirectory = heightmapOutputPath
+                };
+
                 using (Process process = Process.Start(startInfo))
                 {
-                    string output = await process.StandardOutput.ReadToEndAsync();
-                    string error = await process.StandardError.ReadToEndAsync();
-                    
-                    await Task.Run(() => process.WaitForExit());
-                    
-                    if (process.ExitCode == 0)
+                    if (process == null)
                     {
-                        UnityEngine.Debug.Log($"DEM processing completed successfully: {output}");
+                        Debug.LogError("Failed to start Python process");
+                        return null;
+                    }
+
+                    // Read output asynchronously
+                    var outputTask = process.StandardOutput.ReadToEndAsync();
+                    var errorTask = process.StandardError.ReadToEndAsync();
+
+                    // Wait for process to exit
+                    await Task.Run(() => process.WaitForExit());
+
+                    string output = await outputTask;
+                    string error = await errorTask;
+
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        Debug.Log($"Python output: {output}");
+                    }
+
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        Debug.LogError($"Python error: {error}");
+                    }
+
+                    if (process.ExitCode == 0 && File.Exists(outputPath))
+                    {
+                        Debug.Log($"✓ Heightmap generated: {outputPath}");
                         return outputPath;
                     }
                     else
                     {
-                        UnityEngine.Debug.LogError($"DEM processing failed: {error}");
+                        Debug.LogError($"Python process failed with exit code: {process.ExitCode}");
                         return null;
                     }
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception e)
             {
-                UnityEngine.Debug.LogError($"Failed to run Python script: {ex.Message}");
+                Debug.LogError($"Exception running Python script: {e.Message}");
                 return null;
             }
         }
-        
-        /// <summary>
-        /// Cleanup temporary files on backend
-        /// </summary>
-        private async Task CleanupBackendFiles(string fileId)
+
+        #region Response Classes
+
+        [Serializable]
+        private class ProcessRequest
         {
-            try
-            {
-                string url = $"{backendUrl}/api/cleanup";
-                string jsonBody = $"{{\"file_id\":\"{fileId}\"}}";
-                
-                using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
-                {
-                    byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonBody);
-                    request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-                    request.downloadHandler = new DownloadHandlerBuffer();
-                    request.SetRequestHeader("Content-Type", "application/json");
-                    
-                    await request.SendWebRequest();
-                    
-                    if (request.result == UnityWebRequest.Result.Success)
-                    {
-                        UnityEngine.Debug.Log($"Backend files cleaned up for: {fileId}");
-                    }
-                }
-            }
-            catch (System.Exception ex)
-            {
-                UnityEngine.Debug.LogWarning($"Failed to cleanup backend files: {ex.Message}");
-            }
+            public string file_id;
+            public int resolution;
+            public string output_format;
         }
+
+        [Serializable]
+        private class ProcessResponse
+        {
+            public string heightmap_path;
+            public string heightmap_id;
+            public HeightmapMetadata metadata;
+        }
+
+        [Serializable]
+        private class HeightmapMetadata
+        {
+            public int resolution;
+            public float min_elevation;
+            public float max_elevation;
+            public float elevation_range;
+        }
+
+        #endregion
+    }
+
+    [Serializable]
+    public class APIConfig
+    {
+        public string opentopography_api_key;
+        public string dem_type;
+        public int default_radius_km;
+        public int heightmap_resolution;
+        public bool useLocalAPI;
+        public string backendUrl;
     }
 }

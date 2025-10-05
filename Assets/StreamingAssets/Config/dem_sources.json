@@ -1,7 +1,7 @@
 {
   "sources": [
     {
-      "id": "srtmgl1",
+      "id": "SRTMGL1",
       "name": "SRTM GL1 (30m)",
       "provider": "OpenTopography",
       "resolution": "30m",
@@ -10,7 +10,7 @@
       "enabled": true
     },
     {
-      "id": "srtmgl3",
+      "id": "SRTMGL3",
       "name": "SRTM GL3 (90m)",
       "provider": "OpenTopography",
       "resolution": "90m",
@@ -19,14 +19,74 @@
       "enabled": true
     },
     {
-      "id": "aw3d30",
+      "id": "AW3D30",
       "name": "ALOS World 3D (30m)",
       "provider": "OpenTopography",
       "resolution": "30m",
       "coverage": "Global (82°N-82°S)",
       "description": "ALOS World 3D topographic dataset",
       "enabled": true
+    },
+    {
+      "id": "SRTMGL1_E",
+      "name": "SRTM GL1 Ellipsoidal (30m)",
+      "provider": "OpenTopography",
+      "resolution": "30m",
+      "coverage": "Global (60°N-60°S)",
+      "description": "SRTM with ellipsoidal heights",
+      "enabled": true
+    },
+    {
+      "id": "AW3D30_E",
+      "name": "ALOS World 3D Ellipsoidal (30m)",
+      "provider": "OpenTopography",
+      "resolution": "30m",
+      "coverage": "Global (82°N-82°S)",
+      "description": "ALOS with ellipsoidal heights",
+      "enabled": true
+    },
+    {
+      "id": "SRTM15Plus",
+      "name": "SRTM15+ (500m)",
+      "provider": "OpenTopography",
+      "resolution": "500m",
+      "coverage": "Global including bathymetry",
+      "description": "Global topography and bathymetry",
+      "enabled": true
+    },
+    {
+      "id": "NASADEM",
+      "name": "NASADEM (30m)",
+      "provider": "OpenTopography",
+      "resolution": "30m",
+      "coverage": "Global (60°N-60°S)",
+      "description": "Improved version of SRTM",
+      "enabled": true
+    },
+    {
+      "id": "COP30",
+      "name": "Copernicus DEM (30m)",
+      "provider": "OpenTopography",
+      "resolution": "30m",
+      "coverage": "Global (90°N-90°S)",
+      "description": "Copernicus Global DEM",
+      "enabled": true
+    },
+    {
+      "id": "COP90",
+      "name": "Copernicus DEM (90m)",
+      "provider": "OpenTopography",
+      "resolution": "90m",
+      "coverage": "Global (90°N-90°S)",
+      "description": "Copernicus Global DEM - lower resolution",
+      "enabled": true
     }
   ],
-  "defaultSource": "aw3d30"
+  "defaultSource": "SRTMGL1",
+  "notes": {
+    "case_sensitivity": "DEM type IDs are case-sensitive. Use uppercase.",
+    "api_reference": "https://portal.opentopography.org/apidocs/",
+    "supported_formats": ["GTiff", "AAIGrid", "HFA"],
+    "recommended": "SRTMGL1 for most use cases, COP30 for polar regions"
+  }
 }

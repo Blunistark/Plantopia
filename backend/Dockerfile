@@ -3,23 +3,26 @@
 
 FROM python:3.10-slim
 
-# Install system dependencies for GDAL/rasterio
+# Install GDAL system dependencies
 RUN apt-get update && apt-get install -y \
     gdal-bin \
     libgdal-dev \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for GDAL
+# Set environment variables for GDAL compilation
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
+ENV GDAL_CONFIG=/usr/bin/gdal-config
 
 # Set working directory
 WORKDIR /app
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir numpy && \
+    pip install --no-cache-dir GDAL==$(gdal-config --version) && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app.py .

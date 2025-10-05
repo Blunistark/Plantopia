@@ -237,7 +237,7 @@ MonoBehaviour:
   backendUrl: http://localhost:5000
   useLocalAPI: 1
   apiKey: 0cbdf6155fbd19e73bae8dd14047be8d
-  demType: SRTM15Plus
+  demType: NASADEM
   demCachePath: D:\Apps\Unity\Plantopia\Assets\StreamingAssets\Heightmaps\cache
   demTempPath: D:\Apps\Unity\Plantopia\Assets\StreamingAssets\Heightmaps\temp
 --- !u!1 &705507993
@@ -378,10 +378,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 166b90a1bd44b0145bc5f687947e1113, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  backendUrl: http://localhost:5000
-  useLocalAPI: 1
+  defaultResolution: 513
   pythonExecutable: python
-  heightmapResolution: 513
+  useAPI: 1
+  backendUrl: http://localhost:5000
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0
@@ -606,16 +606,15 @@ MonoBehaviour:
   progressController: {fileID: 1189830475}
   currentMetadata:
     location:
-      locationName: City of New York, New York, United States
-      latitude: 40.712727
-      longitude: -74.00601
+      locationName: Delhi, India
+      latitude: 28.632803
+      longitude: 77.21977
       radius: 10
     heightmapResolution: 513
     terrainSize: {x: 2000, y: 600, z: 2000}
     heightScale: 1
-    demFilePath: D:\Apps\Unity\Plantopia\Assets\StreamingAssets\Heightmaps\temp\dem_City
-      of New York, New York, United States_638952275777772326.tif
-    heightmapPath: D:/Apps/Unity/Plantopia/Assets/StreamingAssets\Heightmaps\temp\heightmap_638952275888981862.png
+    demFilePath: 6ddbed69-eb07-4cf4-807f-a2507b1ba827
+    heightmapPath: heightmap_6ddbed69-eb07-4cf4-807f-a2507b1ba827.png
 --- !u!4 &1683650800
 Transform:
   m_ObjectHideFlags: 0
@@ -641,7 +640,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1755042637}
   - component: {fileID: 1755042636}
-  - component: {fileID: 1755042638}
   m_Layer: 0
   m_Name: TerrainGenerator
   m_TagString: Untagged
@@ -680,22 +678,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1755042638
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1755042635}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e4ed3685f51c454b9ffb9820c07782e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  heightmapResolution: 1024
-  terrainSize: {x: 2000, y: 600, z: 2000}
-  terrainMaterial: {fileID: 0}
-  currentTerrain: {fileID: 0}
 --- !u!114 &1792630455214930533 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6344584295140090899, guid: f1d2a5204cc67b946a84ca26af105053, type: 3}
@@ -727,7 +709,15 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 20151111188490644, guid: f1d2a5204cc67b946a84ca26af105053, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 20151111188490644, guid: f1d2a5204cc67b946a84ca26af105053, type: 3}
       propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 20151111188490644, guid: f1d2a5204cc67b946a84ca26af105053, type: 3}
+      propertyPath: m_AnchorMin.x
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2252626974657942176, guid: f1d2a5204cc67b946a84ca26af105053, type: 3}
@@ -817,6 +807,10 @@ PrefabInstance:
     - target: {fileID: 3496795348820511934, guid: f1d2a5204cc67b946a84ca26af105053, type: 3}
       propertyPath: m_TargetGraphic
       value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 4611026054658457349, guid: f1d2a5204cc67b946a84ca26af105053, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4611026054658457349, guid: f1d2a5204cc67b946a84ca26af105053, type: 3}
       propertyPath: m_AnchorMax.y
