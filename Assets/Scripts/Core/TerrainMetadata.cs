@@ -18,7 +18,7 @@ namespace Plantopia.Core
         
         public TerrainMetadata()
         {
-            heightmapResolution = 513;
+            heightmapResolution = 4097;  // Maximum resolution (2^12 + 1) for highest detail
             terrainSize = new Vector3(2000, 600, 2000);
             heightScale = 1.0f;
             createdDate = System.DateTime.Now;

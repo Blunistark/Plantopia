@@ -297,8 +297,8 @@ def process_dem_to_heightmap(dem_path, resolution):
             else:
                 elevation_data = np.zeros_like(elevation_data)
         
-        # Apply Gaussian smoothing to reduce noise
-        elevation_data = gaussian_filter(elevation_data, sigma=1.5)
+        # Apply moderate Gaussian smoothing to reduce noise while preserving features
+        elevation_data = gaussian_filter(elevation_data, sigma=0.8)
         
         # Normalize to 0-1 range
         min_elevation = float(np.nanmin(elevation_data))
@@ -315,9 +315,9 @@ def process_dem_to_heightmap(dem_path, resolution):
         image = Image.fromarray((normalized * 255).astype(np.uint8), mode='L')
         image = image.resize((resolution, resolution), Image.Resampling.LANCZOS)
         
-        # Apply slight smoothing after resize to reduce artifacts
+        # Apply moderate smoothing to reduce resize artifacts and noise
         image_array = np.array(image).astype(np.float32)
-        image_array = gaussian_filter(image_array, sigma=0.5)
+        image_array = gaussian_filter(image_array, sigma=0.4)  # Balanced smoothing for high-res terrain
         
         # Convert to 16-bit for better precision
         image_16bit = Image.fromarray((image_array / 255.0 * 65535).astype(np.uint16))

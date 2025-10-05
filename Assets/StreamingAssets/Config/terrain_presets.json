@@ -35,7 +35,7 @@
     },
     {
       "name": "Large Area",
-      "heightmapResolution": 513,
+      "heightmapResolution": 4097,
       "terrainSize": {
         "x": 5000,
         "y": 1000,

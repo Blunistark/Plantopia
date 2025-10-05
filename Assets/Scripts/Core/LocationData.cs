@@ -13,7 +13,7 @@ namespace Plantopia.Core
         public float longitude;
         public float radius; // in kilometers
         
-        public LocationData(string name, float lat, float lon, float rad = 10f)
+        public LocationData(string name, float lat, float lon, float rad = 1f)  // Default 1 km for farm-scale simulation
         {
             locationName = name;
             latitude = lat;

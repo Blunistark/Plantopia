@@ -10,7 +10,7 @@ namespace Plantopia.Editor
     public class DEMImporter : EditorWindow
     {
         private string demFilePath = "";
-        private int heightmapResolution = 513;
+        private int heightmapResolution = 4097;  // Maximum resolution (2^12 + 1) for highest detail
         private Vector3 terrainSize = new Vector3(2000, 600, 2000);
         
         [MenuItem("Tools/Plantopia/DEM Importer")]

@@ -15,7 +15,7 @@ namespace Plantopia.DEM
     public class DEMProcessor : MonoBehaviour
     {
         [Header("Processing Settings")]
-        public int defaultResolution = 513;
+        public int defaultResolution = 4097;  // Maximum resolution (2^12 + 1) for highest detail
         public string pythonExecutable = "python";
         
         [Header("API Settings")]

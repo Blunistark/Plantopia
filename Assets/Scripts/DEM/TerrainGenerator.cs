@@ -10,7 +10,7 @@ namespace Plantopia.DEM
     public class TerrainGenerator : MonoBehaviour
     {
         [Header("Terrain Settings")]
-        public int heightmapResolution = 513;
+        public int heightmapResolution = 4097;  // Maximum resolution (2^12 + 1) for highest detail
         public Vector3 terrainSize = new Vector3(2000, 600, 2000);
         public Material terrainMaterial;
         
@@ -38,10 +38,10 @@ namespace Plantopia.DEM
             terrainData.heightmapResolution = heightmapResolution;
             terrainData.size = metadata?.terrainSize ?? terrainSize;
             
-            // Convert texture to heightmap with smoothing
+            // Convert texture to heightmap with smoothing for quality
             float[,] heights = ConvertTextureToHeightmap(heightmapTexture, heightmapResolution);
             
-            // Apply smoothing to reduce noise
+            // Apply light smoothing to reduce any remaining artifacts at high resolution
             heights = SmoothHeightmap(heights, heightmapResolution);
             
             terrainData.SetHeights(0, 0, heights);
